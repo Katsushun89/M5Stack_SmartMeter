@@ -1,34 +1,27 @@
-//#include <M5Stack.h>
+#include <M5Stack.h>
+#include "BP35A1.h"
+
+BP35A1 *bp35a1;
 
 void setup()
 {
-//  M5.begin();
+  M5.begin();
 
   delay(1000);
+  bp35a1 = new BP35A1();
+  
   // text print
-//  M5.Lcd.fillScreen(BLACK);
-//  M5.Lcd.setCursor(10, 10);
-//  M5.Lcd.setTextColor(WHITE);
-//  M5.Lcd.setTextSize(1);
+  M5.Lcd.fillScreen(BLACK);
+  M5.Lcd.setCursor(10, 10);
+  M5.Lcd.setTextColor(WHITE);
+  M5.Lcd.setTextSize(1);
 
-//  M5.Lcd.setCursor(10, 10); M5.Lcd.print("BP35A1");
+  M5.Lcd.setCursor(10, 10); M5.Lcd.print("BP35A1");
   Serial.begin(115200);
   Serial2.begin(115200);
   delay(100);
-  Serial.print("send SKVER");
-  
-  //Serial2.write("SKVER\r\n");
-  Serial2.println("SKVER\r\n");
-  delay(100);
 
-  if ( Serial2.available() > 0 ) {
-    String str = Serial2.readStringUntil('\n');
-    Serial.print(str.c_str());
-  }
-  if ( Serial2.available() > 0 ) {
-    String str = Serial2.readStringUntil('\n');
-    Serial.print(str.c_str());
-  }
+  bp35a1->testComm();
 }
 
 void resetWI_SUN() {
@@ -45,6 +38,7 @@ void resetWI_SUN() {
 
   return;
 }
+
 void loop()
 {
 
