@@ -22,21 +22,7 @@ void setup()
   delay(100);
 
   bp35a1->testComm();
-}
-
-void resetWI_SUN() {
-  digitalWrite(5, LOW); delay(5); digitalWrite(5, HIGH);
-  Serial.setTimeout(300);
-  String str;
-  while(1) {
-    str = Serial2.readStringUntil('\0');
-    if(str.length() == 0) {
-      Serial2.println("SKVER");
-    }
-    delay(10);
-  }
-
-  return;
+  bp35a1->initComm();
 }
 
 void loop()
