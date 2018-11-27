@@ -23,12 +23,18 @@ void setup()
 
   bp35a1->testComm();
   bp35a1->initComm();
+  bp35a1->activeScan();
+  
 }
 
 void loop()
 {
-
-
-  
+  uint32_t power;
+#if 1
+  if(bp35a1->getInstantaneousPower(&power) == true){
+    Serial.println("getInstantaneousPower success");
+  }
+  delay(30 * 1000);
+#endif  
 }
 
