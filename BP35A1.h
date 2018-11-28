@@ -16,6 +16,7 @@ public:
     const uint32_t WAIT_MEASURE_TIME = 30 * 1000;
     const uint32_t SCAN_LIMIT = 15;
     const uint32_t JOIN_LIMIT = 10;
+    const uint32_t MEASURE_LIMIT = 15;
 
     BP35A1(void){
         pass_ = B_ROOT_PASS;
@@ -33,11 +34,13 @@ public:
         delay(100);
         while(!isOverWaitTime(start_time, cur_time, wait_time)){
             *res_str = Serial2.readStringUntil('\0');
+            cur_time = millis();
+            //Serial.println("cur_time:" + String(cur_time, DEC) + ", start_time" + String(start_time, DEC));
             if(res_str->length() == 0) continue;
 
-            Serial.println(res_str->c_str());
-            //Serial.println();
-
+            Serial.println(*res_str);
+            Serial.println();
+            delay(1);
             if(res_str->indexOf(expected_str) != -1) {
                 return true;
             }
@@ -45,8 +48,7 @@ public:
             if(res_str->indexOf("EVENT 24") != -1) break;
             //FAILでbreakしたくないケースがあれば関数を分離する
             if(res_str->indexOf("FAIL") != -1) break; 
-
-            cur_time = millis();
+            
         }
         return false;
     };
@@ -295,12 +297,12 @@ public:
         data_str[13] = char(0x00);
 
         String data_str_len = String(DATA_STR_LEN, HEX);
+        data_str_len.toUpperCase();
         uint32_t str_len = data_str_len.length(); 
-        Serial.println("str_len" + str_len);
-
         for(uint32_t i = 0; i < 4 - str_len; i++){
             data_str_len = "0" + data_str_len;
         }
+        Serial.println("data_str_len:" + data_str_len);
         
         String com_str = "SKSENDTO 1 " + ipv6_addr_ + " 0E1A 1 " + data_str_len + " ";
         byte com_bytes[1024];
@@ -308,24 +310,31 @@ public:
         for(uint32_t i = 0; i < DATA_STR_LEN; i++){
             com_bytes[com_str.length() + i] = data_str[i];
         }
-
+        
+        uint32_t loop_cnt = 0;
         do{
+            Serial.println("measure loop");
             String measure_value;
             Serial2.write(com_bytes, com_str.length() + DATA_STR_LEN);
+            
             Serial2.println();
             String expected_res = "1081000102880105FF01";
+            Serial.println("measure wait");
             bool is_received_res = waitExpectedRes(WAIT_MEASURE_TIME, expected_res, &measure_value);
+            Serial.println("measure res");
             if(!is_received_res){
                Serial.println("measure nores err");
-               return false;
+               loop_cnt++;
+               continue;
             }
 
             uint32_t offset = measure_value.indexOf(expected_res);
             measure_value = measure_value.substring(offset + expected_res.length());
             Serial.println("EDATA = " + measure_value);
             if(!(measure_value.indexOf("72") != -1 || measure_value.indexOf("52") != -1)){
-               Serial.println("measure res err");
-                return false;
+               Serial.println("measure res data err");
+               loop_cnt++;
+               continue;
             }
 
             Serial.println("measure res OK");
@@ -337,8 +346,10 @@ public:
             Serial.println("IPMV:" + String(hex_power_char) + "[W]");
             
             *power = static_cast<uint32_t>(hex_power_char);
-        }while(false);
-        return true;
+            return true;
+        }while(loop_cnt < MEASURE_LIMIT);
+
+        return false;
     };
     
 };
