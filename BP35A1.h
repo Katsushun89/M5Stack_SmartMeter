@@ -60,15 +60,30 @@ public:
     };
 
 public:
+    //データ部の表示形式（00：バイナリ表示、01：ASCII表示）
+    //一度だけ設定すれば後は不要
+    bool setWOPT(void){
+        Serial2.println("WOPT 01");
+        delay(100);
+        bool is_received_res = waitExpectedRes(WAIT_TIME, "OK");
+        if(!is_received_res){
+            Serial.println("setWOPT()) nores err");
+            return false;
+        }
+        Serial.println("setWOPT() OK");
+        return true;
+    };
+
+public:
     bool testComm(void){
         Serial2.println("SKVER");
         delay(100);
         bool is_received_res = waitExpectedRes(WAIT_TIME, "OK");
         if(!is_received_res){
-            Serial.println("testComm() nores err");
+            Serial.println("testcomm() nores err");
             return false;
         }
-        Serial.println("testComm() OK");
+        Serial.println("testcomm() ok");
         return true;
     };
 
@@ -302,7 +317,7 @@ public:
         for(uint32_t i = 0; i < 4 - str_len; i++){
             data_str_len = "0" + data_str_len;
         }
-        Serial.println("data_str_len:" + data_str_len);
+        //Serial.println("data_str_len:" + data_str_len);
         
         String com_str = "SKSENDTO 1 " + ipv6_addr_ + " 0E1A 1 " + data_str_len + " ";
         byte com_bytes[1024];
@@ -313,15 +328,12 @@ public:
         
         uint32_t loop_cnt = 0;
         do{
-            Serial.println("measure loop");
             String measure_value;
             Serial2.write(com_bytes, com_str.length() + DATA_STR_LEN);
-            
+            Serial.write(com_bytes, com_str.length() + DATA_STR_LEN);
             Serial2.println();
             String expected_res = "1081000102880105FF01";
-            Serial.println("measure wait");
             bool is_received_res = waitExpectedRes(WAIT_MEASURE_TIME, expected_res, &measure_value);
-            Serial.println("measure res");
             if(!is_received_res){
                Serial.println("measure nores err");
                loop_cnt++;
