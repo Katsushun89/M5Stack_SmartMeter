@@ -13,27 +13,35 @@ void setup()
   // text print
   M5.Lcd.fillScreen(BLACK);
   M5.Lcd.setCursor(10, 10);
-  M5.Lcd.setTextColor(WHITE);
-  M5.Lcd.setTextSize(3);
+  M5.Lcd.setTextColor(GREEN);
+  M5.Lcd.setTextSize(4);
 
-  M5.Lcd.setCursor(10, 10); M5.Lcd.print("BP35A1");
   Serial.begin(115200);
   Serial2.begin(115200);
   delay(100);
 
+  M5.Lcd.setCursor(0, 0);
+  M5.Lcd.clear(BLACK);
+  M5.Lcd.println("BP35A1");
   bp35a1->testComm();
+  M5.Lcd.println("testComm:OK");
   bp35a1->initComm();
+  M5.Lcd.println("initComm:OK");
   bp35a1->activeScan();
+  M5.Lcd.println("activeScan:OK");
 }
 
 void loop()
 {
   uint32_t power;
 
+  M5.Lcd.setCursor(0, 0);
+  M5.Lcd.clear(BLACK);
+  M5.Lcd.println("BP35A1");
+
   if(bp35a1->getInstantaneousPower(&power) == true){
     Serial.println("getInstantaneousPower success");
-    M5.Lcd.setTextSize(4);
-    M5.Lcd.setCursor(10, 50); M5.Lcd.println("IPMV:" + String(power, DEC) + "[W]");
+    M5.Lcd.println("IPMV:" + String(power, DEC) + "[W]");
   }
   delay(30 * 1000);
   M5.update();
