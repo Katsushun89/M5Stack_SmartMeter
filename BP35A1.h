@@ -3,6 +3,19 @@
 #include "utility.h"
 #include "config.h"
 
+typedef uint8_t accumulation_collection_date_t;
+
+typedef struct {
+    uint16_t year;
+    uint8_t month;
+    uint8_t day;
+    uint8_t hour;
+    uint8_t minute;
+    uint8_t sec;
+    uint32_t power_consumpution;
+} integral_power_consumpution_t;
+
+
 class BP35A1{
 private:
     String pass_;
@@ -10,6 +23,37 @@ private:
     String ipv6_addr_;
     String channel_;
     String pan_ID_;
+    float integral_power_unit_;
+    float coefficient_;
+    uint8_t accumulation_collection_date_;
+    integral_power_consumpution_t integral_power_consumpution_;
+
+    float convertPowerUnit(uint32_t int_power_unit){
+        switch(int_power_unit){
+        case 0x0:
+            return 1;
+        case 0x1:
+            return 0.1;
+        case 0x2:
+            return 0.01;
+        case 0x3:
+            return 0.001;
+        case 0x4:
+            return 0.0001;
+        case 0xA:
+            return 10;
+        case 0xB:
+            return 100;
+        case 0xC:
+            return 1000;
+        case 0xD:
+            return 10000;
+        default:
+            Serial.println("convert error" + String(int_power_unit, DEC));
+            return 0;
+        }
+    };
+
 public:
     const uint32_t WAIT_TIME = 10 * 1000;
     const uint32_t WAIT_SCAN_TIME = 180 * 1000;
@@ -296,19 +340,20 @@ public:
         data_str[4] = char(0x05);
         data_str[5] = char(0xff);
         data_str[6] = char(0x01);
-        //DEOJ
+        //DEOJ 低圧スマート電力量メータークラス
         data_str[7] = char(0x02);
         data_str[8] = char(0x88);
         data_str[9] = char(0x01);
         //ESV(0x62:プロパティ値読み出し)
         data_str[10] = char(0x62);
 
-        //瞬時電力計測値
         //OPC(1個)
         data_str[11] = char(0x01);
+
         //EPC
+        //瞬時電力計測値:0xE7
         data_str[12] = char(0xe7);
-        //PDC
+        //PDC read:0
         data_str[13] = char(0x00);
 
         String data_str_len = String(DATA_STR_LEN, HEX);
@@ -317,7 +362,6 @@ public:
         for(uint32_t i = 0; i < 4 - str_len; i++){
             data_str_len = "0" + data_str_len;
         }
-        //Serial.println("data_str_len:" + data_str_len);
         
         String com_str = "SKSENDTO 1 " + ipv6_addr_ + " 0E1A 1 " + data_str_len + " ";
         byte com_bytes[1024];
@@ -363,6 +407,299 @@ public:
 
         return false;
     };
-    
+
+    bool setIntegralCollectDate(uint8_t collect_date){
+        Serial.println(__func__);
+        const uint32_t DATA_STR_LEN = 15;
+        char data_str[DATA_STR_LEN] = {"0"};
+
+        //EHD
+        data_str[0] = char(0x10);
+        data_str[1] = char(0x81);
+        //TID
+        data_str[2] = char(0x00);
+        data_str[3] = char(0x01);
+        //SEOJ
+        data_str[4] = char(0x05);
+        data_str[5] = char(0xff);
+        data_str[6] = char(0x01);
+        //DEOJ 低圧スマート電力量メータークラス
+        data_str[7] = char(0x02);
+        data_str[8] = char(0x88);
+        data_str[9] = char(0x01);
+        //ESV(0x61:プロパティ値書き込み)
+        data_str[10] = char(0x61);
+
+        //OPC(1個)
+        data_str[11] = char(0x01);
+     
+        //EPC
+        //積算履歴収集日１:0xE5
+        data_str[12] = char(0xe5);
+        //PDC write:1
+        data_str[13] = char(0x01);
+        //EDT 0x0:today, -1:yesterday
+        data_str[14] = char(collect_date);
+
+        String data_str_len = String(DATA_STR_LEN, HEX);
+        data_str_len.toUpperCase();
+        uint32_t str_len = data_str_len.length(); 
+        for(uint32_t i = 0; i < 4 - str_len; i++){
+            data_str_len = "0" + data_str_len;
+        }
+        
+        String com_str = "SKSENDTO 1 " + ipv6_addr_ + " 0E1A 1 " + data_str_len + " ";
+        byte com_bytes[1024];
+        com_str.getBytes(com_bytes, com_str.length() + 1);
+        for(uint32_t i = 0; i < DATA_STR_LEN; i++){
+            com_bytes[com_str.length() + i] = data_str[i];
+        }
+        
+        uint32_t loop_cnt = 0;
+        do{
+            String measure_value;
+            int32_t start_data; 
+            int32_t end_data; 
+            String hex_PDC;
+            uint32_t int_PDC;
+
+            Serial2.write(com_bytes, com_str.length() + DATA_STR_LEN);
+            Serial.write(com_bytes, com_str.length() + DATA_STR_LEN);
+            Serial2.println();
+            String expected_res = "1081000102880105FF01";
+            bool is_received_res = waitExpectedRes(WAIT_MEASURE_TIME, expected_res, &measure_value);
+            if(!is_received_res){
+               Serial.println("measure nores err");
+               loop_cnt++;
+               continue;
+            }
+
+            uint32_t offset = measure_value.indexOf(expected_res);
+            measure_value = measure_value.substring(offset + expected_res.length());
+            Serial.println("EDATA = " + measure_value);
+            //71:要求受付, 51:不可応答
+            if(!(measure_value.indexOf("71") != -1 || measure_value.indexOf("51") != -1)){
+               Serial.println("measure res data err");
+               loop_cnt++;
+               continue;
+            }
+
+            Serial.println("measure res OK");
+
+            //積算履歴収集日１:0xE5
+            offset = measure_value.indexOf("E5");
+            start_data = offset + 2;
+            end_data = start_data + 2;
+            hex_PDC = measure_value.substring(start_data, end_data);
+            int_PDC = hexToDec(hex_PDC);
+            Serial.println("E5 PDC " + hex_PDC + ", " + String(int_PDC, DEC));
+            //PDC=0:success
+            if(hex_PDC == "00"){
+                Serial.println("set collect date:success");
+                return true;
+            }else{
+                Serial.println("set collect date:failure");
+                return false;
+            }
+        }while(loop_cnt < MEASURE_LIMIT);
+
+        return false;
+ 
+    };
+
+    bool getIntegralPowerConsumption(integral_power_consumpution_t *integral_power){
+        Serial.println(__func__);
+        const uint32_t DATA_STR_LEN = 20;
+        char data_str[DATA_STR_LEN] = {"0"};
+
+        //EHD
+        data_str[0] = char(0x10);
+        data_str[1] = char(0x81);
+        //TID
+        data_str[2] = char(0x00);
+        data_str[3] = char(0x01);
+        //SEOJ
+        data_str[4] = char(0x05);
+        data_str[5] = char(0xff);
+        data_str[6] = char(0x01);
+        //DEOJ 低圧スマート電力量メータークラス
+        data_str[7] = char(0x02);
+        data_str[8] = char(0x88);
+        data_str[9] = char(0x01);
+        //ESV(0x62:プロパティ値読み出し)
+        data_str[10] = char(0x62);
+
+        //OPC(4個)
+        data_str[11] = char(0x04);
+     
+        //EPC
+        //係数:0xD3
+        data_str[12] = char(0xd3);
+        //PDC read:0
+        data_str[13] = char(0x00);
+
+        //EPC
+        //積算電力量単位:0xE1
+        data_str[14] = char(0xe1);
+        //PDC read:0
+        data_str[15] = char(0x00);
+
+        //EPC
+        //積算履歴収集日１:0xE5
+        data_str[16] = char(0xe5);
+        //PDC read:0
+        data_str[17] = char(0x00);
+
+        //EPC
+        //定時積算電力量計測値(正方向計測値):0xEA
+        data_str[18] = char(0xea);
+        //PDC read:0
+        data_str[19] = char(0x00);
+
+        String data_str_len = String(DATA_STR_LEN, HEX);
+        data_str_len.toUpperCase();
+        uint32_t str_len = data_str_len.length(); 
+        for(uint32_t i = 0; i < 4 - str_len; i++){
+            data_str_len = "0" + data_str_len;
+        }
+        
+        String com_str = "SKSENDTO 1 " + ipv6_addr_ + " 0E1A 1 " + data_str_len + " ";
+        byte com_bytes[1024];
+        com_str.getBytes(com_bytes, com_str.length() + 1);
+        for(uint32_t i = 0; i < DATA_STR_LEN; i++){
+            com_bytes[com_str.length() + i] = data_str[i];
+        }
+        
+        uint32_t loop_cnt = 0;
+        do{
+            String measure_value;
+            int32_t start_data; 
+            int32_t end_data; 
+            String hex_PDC;
+            uint32_t int_PDC;
+
+            Serial2.write(com_bytes, com_str.length() + DATA_STR_LEN);
+            Serial.write(com_bytes, com_str.length() + DATA_STR_LEN);
+            Serial2.println();
+            String expected_res = "1081000102880105FF01";
+            bool is_received_res = waitExpectedRes(WAIT_MEASURE_TIME, expected_res, &measure_value);
+            if(!is_received_res){
+               Serial.println("measure nores err");
+               loop_cnt++;
+               continue;
+            }
+
+            uint32_t offset = measure_value.indexOf(expected_res);
+            measure_value = measure_value.substring(offset + expected_res.length());
+            Serial.println("EDATA = " + measure_value);
+            if(!(measure_value.indexOf("72") != -1 || measure_value.indexOf("52") != -1)){
+               Serial.println("measure res data err");
+               loop_cnt++;
+               continue;
+            }
+
+            Serial.println("measure res OK");
+
+            //係数:0xD3
+            offset = measure_value.indexOf("D3");
+            start_data = offset + 2;
+            end_data = start_data + 2;
+            hex_PDC = measure_value.substring(start_data, end_data);
+            int_PDC = hexToDec(hex_PDC);
+            Serial.println("D3 PDC " + hex_PDC + ", " + String(int_PDC, DEC));
+            start_data = end_data;
+            end_data = start_data + 2 * int_PDC;
+            String str_coefficient = measure_value.substring(start_data, end_data);
+            Serial.println("str_coefficient:" + str_coefficient);
+            uint32_t int_coef = hexToDec(str_coefficient);
+            Serial.println("coefficient:" + String(int_coef));
+            coefficient_ = float(int_coef);
+
+            measure_value = measure_value.substring(end_data);
+
+            //積算電力量単位:0xE1
+            offset = measure_value.indexOf("E1");
+            start_data = offset + 2;
+            end_data = start_data + 2;
+            hex_PDC = measure_value.substring(start_data, end_data);
+            int_PDC = hexToDec(hex_PDC);
+            Serial.println("E1 PDC " + hex_PDC + ", " + String(int_PDC, DEC));
+            start_data = end_data; 
+            end_data = start_data + 2 * int_PDC;
+            String str_power_unit = measure_value.substring(start_data, end_data);
+            Serial.println("str power unit:" + str_power_unit);
+            uint32_t int_power_unit = hexToDec(str_power_unit);
+            Serial.println("power unit:" + String(int_power_unit));
+            integral_power_unit_ = convertPowerUnit(int_power_unit);
+
+            measure_value = measure_value.substring(end_data);
+
+            //積算履歴収集日１:0xE5
+            offset = measure_value.indexOf("E5");
+            start_data = offset + 2;
+            end_data = start_data + 2;
+            hex_PDC = measure_value.substring(start_data, end_data);
+            int_PDC = hexToDec(hex_PDC);
+            Serial.println("E5 PDC " + hex_PDC + ", " + String(int_PDC, DEC));
+            start_data = end_data;
+            end_data = start_data + 2 * int_PDC;
+            String str_collect_date = measure_value.substring(start_data, end_data);
+            uint32_t int_collect_date = hexToDec(str_collect_date);
+            Serial.println("collect date:" + String(int_collect_date));
+            accumulation_collection_date_ = int_collect_date;
+            if(accumulation_collection_date_ != 0){
+                Serial.println("collect date is not today!");
+            }
+
+            measure_value = measure_value.substring(end_data);
+
+            //定時積算電力量計測値(正方向計測値):0xEA
+            offset = measure_value.indexOf("EA");
+            start_data = offset + 2;
+            end_data = start_data + 2;
+            hex_PDC = measure_value.substring(start_data, end_data);
+            int_PDC = hexToDec(hex_PDC);
+            Serial.println("EA PDC " + hex_PDC + ", " + String(int_PDC, DEC));
+            start_data = end_data;
+            end_data = start_data + 2 * int_PDC;
+            String str_integral_power = measure_value.substring(start_data, end_data);
+            
+            Serial.println(str_integral_power);
+            String str_year = str_integral_power.substring(0, 4);
+            integral_power_consumpution_.year = hexToDec(str_year);
+            String str_month = str_integral_power.substring(4, 6);
+            integral_power_consumpution_.month= hexToDec(str_month);
+            String str_day = str_integral_power.substring(6, 8);
+            integral_power_consumpution_.day = hexToDec(str_day);
+            String str_hour = str_integral_power.substring(8, 10);
+            integral_power_consumpution_.hour = hexToDec(str_hour);
+            String str_minute = str_integral_power.substring(10, 12);
+            integral_power_consumpution_.minute = hexToDec(str_minute);
+            String str_sec = str_integral_power.substring(12, 14);
+            integral_power_consumpution_.sec = hexToDec(str_sec);
+            String str_power_consumption = str_integral_power.substring(14, 22);
+            integral_power_consumpution_.power_consumpution = hexToDec(str_power_consumption);
+
+            Serial.println("Date " + String(integral_power_consumpution_.year) + ":" 
+                            + String(integral_power_consumpution_.month) + ":"
+                            + String(integral_power_consumpution_.day) + ":" 
+                            + String(integral_power_consumpution_.hour) + ":" 
+                            + String(integral_power_consumpution_.minute) + ":" 
+                            + String(integral_power_consumpution_.sec)
+                            );
+
+            //係数 * 積算電力量単位 * 時積算電力量計測値 
+            integral_power_consumpution_.power_consumpution = 
+            (uint32_t)(integral_power_consumpution_.power_consumpution *  
+                        coefficient_ * integral_power_unit_);
+            Serial.println("power consumption:" + String(integral_power_consumpution_.power_consumpution) + "[kWh]");
+            *integral_power = integral_power_consumpution_;
+            return true;
+        }while(loop_cnt < MEASURE_LIMIT);
+
+        return false;
+ 
+    };
+
 };
 
