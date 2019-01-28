@@ -115,6 +115,8 @@ void loop()
   if(bp35a1->getInstantaneousPower(&instantaneuous_power)){
     Serial.println("getInstantaneousPower success");
     M5.Lcd.println("IPMV:" + String(instantaneuous_power, DEC) + "[W]");
+  }else{
+    ESP.restart(); 
   }
 
   uint8_t collect_date = 0; //0:today
@@ -136,6 +138,8 @@ void loop()
                   );
 
     M5.Lcd.println("IPC:" + String(integral_power.power_consumpution, DEC) + "[kWh]");
+  }else{
+    ESP.restart(); 
   }
   
   int8_t rslt = bme280.get_sensor_data(&bme_data);
