@@ -80,6 +80,30 @@ void setupAmbient(void)
   ambient.begin(channelId, writeKey, &client); // チャネルIDとライトキーを指定してAmbientの初期化
 }
 
+void executeInitialCommBP35A1(void)
+{
+  uint8_t collect_date = 10; //0:today
+  if(bp35a1->setIntegralCollectDate(collect_date)){
+    Serial.println("setIntegralCollectDate success");
+  }else{
+    ESP.restart();
+  }
+   
+  integral_power_consumpution_t integral_power = {0}; 
+  if(bp35a1->getIntegralPowerConsumption(&integral_power)){
+    Serial.println("getIntegralPowerConsumption success");
+  }else{
+    ESP.restart(); 
+  }
+
+  integral_power_record_t integral_power_record = {0};
+  if(bp35a1->getIntegralPowerRecord(&integral_power_record)){
+    Serial.println("getIntegralPowerRecord success");
+  }else{
+    ESP.restart();
+  }
+}
+
 void setup()
 {
   M5.begin();
@@ -98,6 +122,7 @@ void setup()
   setupBP35A1();
   setupWiFi();
   setupAmbient();
+  executeInitialCommBP35A1();
 }
 
 void loop()
@@ -117,11 +142,6 @@ void loop()
     M5.Lcd.println("IPMV:" + String(instantaneuous_power, DEC) + "[W]");
   }else{
     ESP.restart(); 
-  }
-
-  uint8_t collect_date = 0; //0:today
-  if(bp35a1->setIntegralCollectDate(collect_date)){
-    Serial.println("setIntegralCollectDate success");
   }
 
   if(bp35a1->getIntegralPowerConsumption(&integral_power)){
