@@ -1,12 +1,14 @@
 #include <M5Stack.h>
 #include "BP35A1.h"
 #include <Wire.h>
+#include <WiFi.h>
 #include <esp_wifi.h>
 #include "bme280_i2c.h"
 #include "Ambient.h"
+#include "electric_bill_calculation.h"
 
 #define PERIOD 300
-
+#define JST 3600* 9
 #define DELAY_CONNECTION 100
 
 #define SDA 21
@@ -17,6 +19,7 @@ BME280 bme280(BME280_I2C_ADDR_PRIM);
 WiFiClient client;
 Ambient ambient;
 BP35A1 *bp35a1;
+ElectricBillCalculation bill_calc;
 
 void setupBME280(void)
 {
@@ -82,7 +85,8 @@ void setupAmbient(void)
 
 void executeInitialCommBP35A1(void)
 {
-  uint8_t collect_date = 10; //0:today
+  time_t t = time(NULL);
+  uint8_t collect_date = bill_calc.calcMeterReadingDiffDays(&t); //0:today
   if(bp35a1->setIntegralCollectDate(collect_date)){
     Serial.println("setIntegralCollectDate success");
   }else{
@@ -122,6 +126,7 @@ void setup()
   setupBP35A1();
   setupWiFi();
   setupAmbient();
+  configTime( JST, 0, "ntp.nict.jp", "ntp.jst.mfeed.ad.jp");//after setupWifi
   executeInitialCommBP35A1();
 }
 
@@ -133,10 +138,10 @@ void loop()
   M5.Lcd.clear(BLACK);
   M5.Lcd.println("SMART METER/TEMP");
 
+  uint32_t instantaneuous_power = 0;
   integral_power_consumpution_t integral_power = {0};
   struct bme280_data bme_data;
 
-  uint32_t instantaneuous_power = 0;
   if(bp35a1->getInstantaneousPower(&instantaneuous_power)){
     Serial.println("getInstantaneousPower success");
     M5.Lcd.println("IPMV:" + String(instantaneuous_power, DEC) + "[W]");
