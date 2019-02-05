@@ -3,16 +3,17 @@
 
 ElectricBillCalculation::ElectricBillCalculation()
 {
-
+    power_consumption_this_month_ = 0;
+    electric_bill_ = 0;  
+    min_meter_read_power_ = 1000000;
 }
 
-int32_t ElectricBillCalculation::getDays(int16_t y, int16_t m, int16_t d)
+int16_t ElectricBillCalculation::getDays(int16_t y, int16_t m, int16_t d)
 {
     // 1・2月 → 前年の13・14月
-    if (m <= 2)
-    {
-      --y;
-      m += 12;
+    if(m <= 2){
+        --y;
+        m += 12;
     }
     int16_t dy = 365 * (y - 1); // 経過年数×365日
     int16_t c = y / 100;
@@ -22,7 +23,7 @@ int32_t ElectricBillCalculation::getDays(int16_t y, int16_t m, int16_t d)
 }
 
 
-int32_t ElectricBillCalculation::calcMeterReadingDiffDays(time_t *today)
+int16_t ElectricBillCalculation::calcMeterReadingDiffDays(time_t *today)
 {
     struct tm *tm_today;
     tm_today = localtime(today);
@@ -40,5 +41,72 @@ int32_t ElectricBillCalculation::calcMeterReadingDiffDays(time_t *today)
     int16_t diff_days = today_days - meter_read_days;
     Serial.printf("diff days %d", diff_days);
     return diff_days;
+}
+
+void ElectricBillCalculation::setMeterReadingPowerConsumption(integral_power_record_t *last_meter_read_power)
+{
+    const uint32_t MIN_LIMIT = 1; //何故か1がゴミデータで取得されるので除外する
+
+    for(uint8_t i = 0; i < RECORD_SIZE; i++){
+        if(last_meter_read_power->power_consumpution[i] > MIN_LIMIT &&
+           last_meter_read_power->power_consumpution[i] < min_meter_read_power_){
+               min_meter_read_power_ = last_meter_read_power->power_consumpution[i];
+           }
+    }
+    Serial.printf("min meter read %d", min_meter_read_power_);
+}
+
+uint32_t ElectricBillCalculation::calcThisMonthPowerConsumption(integral_power_consumpution_t *latest_power)
+{
+    uint32_t latest_power_consumption = latest_power->power_consumpution;
+
+    if(latest_power_consumption > min_meter_read_power_){
+        power_consumption_this_month_ = latest_power_consumption - min_meter_read_power_;
+        Serial.printf("power consumption this month %u", power_consumption_this_month_);
+        return power_consumption_this_month_;
+    }else{
+        Serial.println("Error can not calc power consumption this month");
+        Serial.printf("%u %u", latest_power_consumption, min_meter_read_power_);
+        return 0;
+    }
+}
+
+float ElectricBillCalculation::calcMeterRateLightingB(void)
+{
+    electric_bill_ = BASIC_CHARGE;
+
+    if(power_consumption_this_month_ > PHASE_2_MAX_POWER_CONSUMPTION){
+        electric_bill_ += (power_consumption_this_month_ - PHASE_2_MAX_POWER_CONSUMPTION) * PHASE_3_UNIT_CHARGE;
+        electric_bill_ += (PHASE_2_MAX_POWER_CONSUMPTION - PHASE_1_MAX_POWER_CONSUMPTION) * PHASE_2_UNIT_CHARGE;
+        electric_bill_ += (PHASE_1_MAX_POWER_CONSUMPTION) * PHASE_1_UNIT_CHARGE;
+    }else if(power_consumption_this_month_ > PHASE_1_MAX_POWER_CONSUMPTION){
+        electric_bill_ += (power_consumption_this_month_ - PHASE_1_MAX_POWER_CONSUMPTION) * PHASE_2_UNIT_CHARGE;
+        electric_bill_ += (PHASE_1_MAX_POWER_CONSUMPTION) * PHASE_1_UNIT_CHARGE;
+    }else if(power_consumption_this_month_ <= PHASE_1_MAX_POWER_CONSUMPTION){
+        electric_bill_ += (power_consumption_this_month_) * PHASE_1_UNIT_CHARGE;
+    }else{
+        Serial.println("Error calc power consumption");
+    }
+
+    electric_bill_ += power_consumption_this_month_ * FUEL_COST_ADJUSTMENT;
+
+    electric_bill_ += power_consumption_this_month_ * ADDITIONAL_LEVY_1_UNIT_CHARGE;
+
+    electric_bill_ -= DISCOUNT_AMOUNT;
+    
+    Serial.printf("calcMeterRateLightingB %.2f", electric_bill_);
+    return electric_bill_;
+}
+
+float ElectricBillCalculation::calcThisMonthElectricBill(void)
+{
+    switch(CONTRACTED_BILL_TYPE){
+    case BILL_TYPE_METER_RATE_LIGHTING_B:
+        return calcMeterRateLightingB();
+    default:
+        Serial.println("Error bill type");
+        return 0;
+    }
+    return 0;
 }
 
