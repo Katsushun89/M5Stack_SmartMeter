@@ -129,7 +129,7 @@ void setup()
   setupWiFi();
   setupAmbient();
   configTime( JST, 0, "ntp.nict.jp", "ntp.jst.mfeed.ad.jp");//after setupWifi
-  //executeInitialCommBP35A1();
+  executeInitialCommBP35A1();
 }
 
 void printTIme(void)
@@ -188,6 +188,11 @@ void loop()
     ESP.restart(); 
   }
 
+  uint8_t collect_date = 0; //0:today
+  if(bp35a1->setIntegralCollectDate(collect_date)){
+    Serial.println("setIntegralCollectDate success");
+  }
+
   if(bp35a1->getIntegralPowerConsumption(&integral_power)){
     char c_hour[5];
     snprintf(c_hour, sizeof(c_hour), "%02d", integral_power.hour);
@@ -207,12 +212,12 @@ void loop()
     ESP.restart(); 
   }
 
-/*
+
   uint32_t power_consumption_this_month = bill_calc.calcThisMonthPowerConsumption(&integral_power);
   uint32_t bill = static_cast<uint32_t>(bill_calc.calcThisMonthElectricBill());
   M5.Lcd.println("1MTH IPC:" + String(power_consumption_this_month) + "[kWh]");
   M5.Lcd.println("BILL    :" + String(bill) + "[YEN]");
-*/
+
   int8_t bme280_result = bme280.get_sensor_data(&bme_data);
   if(bme280_result >= 0){
     Serial.println("temp hum, press");
@@ -234,8 +239,8 @@ void loop()
   ambient.set(5, String(instantaneuous_power).c_str());
 
   // set this month power consumption and electric bill
-//  ambient.set(6, String(power_consumption_this_month).c_str());
-//  ambient.set(7, String(bill).c_str());
+  ambient.set(6, String(power_consumption_this_month).c_str());
+  ambient.set(7, String(bill).c_str());
 
   ambient.send();
 
