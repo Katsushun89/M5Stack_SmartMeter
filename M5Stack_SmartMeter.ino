@@ -74,7 +74,7 @@ void setupWiFi(void)
             }
         }
     }
-    Serial.print("WiFi connected\r\nIP address: ");
+    Serial.println("WiFi connected\r\nIP address: ");
     Serial.println(WiFi.localIP());
 }
 
@@ -155,7 +155,7 @@ void printTIme(void)
   M5.Lcd.setTextColor(BLUE);
   M5.Lcd.println(String(tm->tm_year+1900, DEC) + "/"
                + String(tm->tm_mon+1) + "/"
-               + String(tm->tm_mon+1) + "("
+               + String(tm->tm_mday) + "("
                + String(wd[tm->tm_wday]) + ")");
 
   M5.Lcd.setTextSize(2);

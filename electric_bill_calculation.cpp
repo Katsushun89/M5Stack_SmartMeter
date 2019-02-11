@@ -27,19 +27,23 @@ int16_t ElectricBillCalculation::calcMeterReadingDiffDays(time_t *today)
 {
     struct tm *tm_today;
     tm_today = localtime(today);
-    int16_t y = tm_today->tm_year;
-    int16_t m = tm_today->tm_mon;
+    int16_t y = tm_today->tm_year + 1900;
+    int16_t m = tm_today->tm_mon + 1;
     int16_t d = tm_today->tm_mday;
 
     int16_t today_days = getDays(y, m, d);
+    Serial.println("today:" + String(y) + "/" + String(m) + "/" + String(d));
 
     if(d <= METER_READING_DAY){
         m--;
     }
     int16_t meter_read_days = getDays(y, m, METER_READING_DAY);
+    Serial.println("meter read day:" + String(y) + "/" + String(m) + "/" + String(METER_READING_DAY));
 
     int16_t diff_days = today_days - meter_read_days;
-    Serial.printf("diff days %d", diff_days);
+    Serial.println("today(c):" + String(today_days));
+    Serial.println("meter_read_days(c):" + String(meter_read_days));
+    Serial.println("diff days:" + String(diff_days));
     return diff_days;
 }
 
@@ -53,7 +57,7 @@ void ElectricBillCalculation::setMeterReadingPowerConsumption(integral_power_rec
                min_meter_read_power_ = last_meter_read_power->power_consumpution[i];
            }
     }
-    Serial.printf("min meter read %d", min_meter_read_power_);
+    Serial.println("min meter read " + String(min_meter_read_power_));
 }
 
 uint32_t ElectricBillCalculation::calcThisMonthPowerConsumption(integral_power_consumpution_t *latest_power)
@@ -62,11 +66,11 @@ uint32_t ElectricBillCalculation::calcThisMonthPowerConsumption(integral_power_c
 
     if(latest_power_consumption > min_meter_read_power_){
         power_consumption_this_month_ = latest_power_consumption - min_meter_read_power_;
-        Serial.printf("power consumption this month %u", power_consumption_this_month_);
+        Serial.println("power consumption this month " + String(power_consumption_this_month_));
         return power_consumption_this_month_;
     }else{
         Serial.println("Error can not calc power consumption this month");
-        Serial.printf("%u %u", latest_power_consumption, min_meter_read_power_);
+        Serial.println(String(latest_power_consumption) + "," + String(min_meter_read_power_));
         return 0;
     }
 }
@@ -94,7 +98,7 @@ float ElectricBillCalculation::calcMeterRateLightingB(void)
 
     electric_bill_ -= DISCOUNT_AMOUNT;
     
-    Serial.printf("calcMeterRateLightingB %.2f", electric_bill_);
+    Serial.println("calcMeterRateLightingB " + String(electric_bill_));
     return electric_bill_;
 }
 
