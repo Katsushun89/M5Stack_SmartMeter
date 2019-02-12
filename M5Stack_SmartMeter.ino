@@ -129,6 +129,7 @@ void setup()
   setupWiFi();
   setupAmbient();
   configTime( JST, 0, "ntp.nict.jp", "ntp.jst.mfeed.ad.jp");//after setupWifi
+  delay(100);
   executeInitialCommBP35A1();
 }
 

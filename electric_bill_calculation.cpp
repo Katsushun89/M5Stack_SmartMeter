@@ -49,9 +49,9 @@ int16_t ElectricBillCalculation::calcMeterReadingDiffDays(time_t *today)
 
 void ElectricBillCalculation::setMeterReadingPowerConsumption(integral_power_record_t *last_meter_read_power)
 {
-    const uint32_t MIN_LIMIT = 1; //何故か1がゴミデータで取得されるので除外する
-
-    for(uint8_t i = 0; i < RECORD_SIZE; i++){
+    const uint32_t MIN_LIMIT = 12; 
+    //何故か最初に1,2などがゴミデータで取得されるので除外する
+    for(uint8_t i = 2; i < RECORD_SIZE; i++){
         if(last_meter_read_power->power_consumpution[i] > MIN_LIMIT &&
            last_meter_read_power->power_consumpution[i] < min_meter_read_power_){
                min_meter_read_power_ = last_meter_read_power->power_consumpution[i];
