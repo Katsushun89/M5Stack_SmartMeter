@@ -8,6 +8,16 @@ ElectricBillCalculation::ElectricBillCalculation()
     min_meter_read_power_ = 1000000;
 }
 
+bool ElectricBillCalculation::isEnableTime(time_t *today)
+{
+    struct tm *tm_today;
+    tm_today = localtime(today);
+    if(tm_today->tm_year == 0) return false;
+    if(tm_today->tm_mon == 0) return false;
+    if(tm_today->tm_mday == 0) return false;
+    return true;
+}
+
 int16_t ElectricBillCalculation::getDays(int16_t y, int16_t m, int16_t d)
 {
     // 1・2月 → 前年の13・14月

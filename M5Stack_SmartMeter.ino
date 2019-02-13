@@ -110,6 +110,23 @@ void executeInitialCommBP35A1(void)
   bill_calc.setMeterReadingPowerConsumption(&integral_power_record);
 }
 
+void configureTime(void)
+{
+  bool is_enable_time = false;
+  for(uint8_t i = 0; i < 10; i++){
+    configTime( JST, 0, "ntp.nict.jp", "ntp.jst.mfeed.ad.jp");//after setupWifi
+    delay(100);
+
+    time_t t = time(NULL);
+    if(bill_calc.isEnableTime(&t)){
+      /* check time : OK */
+      is_enable_time = true;
+      break;
+    }
+  }
+  if(!is_enable_time) ESP.restart();
+}
+
 void setup()
 {
   M5.begin();
@@ -128,12 +145,11 @@ void setup()
   setupBP35A1();
   setupWiFi();
   setupAmbient();
-  configTime( JST, 0, "ntp.nict.jp", "ntp.jst.mfeed.ad.jp");//after setupWifi
-  delay(100);
+  configureTime();
   executeInitialCommBP35A1();
 }
 
-void printTIme(void)
+void printTime(void)
 {
   time_t t;
   struct tm *tm;
@@ -173,7 +189,7 @@ void loop()
   M5.Lcd.setCursor(0, 0);
   M5.Lcd.clear(BLACK);
 
-  printTIme();
+  printTime();
 
   M5.Lcd.setTextSize(2);
   M5.Lcd.setTextColor(GREEN);

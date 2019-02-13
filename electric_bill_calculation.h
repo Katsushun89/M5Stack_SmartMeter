@@ -12,6 +12,7 @@ private:
 
 public:
     ElectricBillCalculation();
+    bool isEnableTime(time_t *today);
     int16_t calcMeterReadingDiffDays(time_t *today);
     void setMeterReadingPowerConsumption(integral_power_record_t *last_meter_read_power);
     uint32_t calcThisMonthPowerConsumption(integral_power_consumpution_t *latest_power);
