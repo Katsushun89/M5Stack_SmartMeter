@@ -86,7 +86,7 @@ void setupAmbient(void)
 void executeInitialCommBP35A1(void)
 {
   time_t t = time(NULL);
-  uint8_t collect_date = bill_calc.calcMeterReadingDiffDays(&t); //0:today
+  uint8_t collect_date = bill_calc.calcMeterReadingDiffDays(&t);
   if(bp35a1->setIntegralCollectDate(collect_date)){
     Serial.println("setIntegralCollectDate success");
   }else{
