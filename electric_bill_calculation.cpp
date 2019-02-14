@@ -18,6 +18,28 @@ bool ElectricBillCalculation::isEnableTime(time_t *today)
     return true;
 }
 
+void ElectricBillCalculation::setSetupDate(time_t *time)
+{
+    setup_date = *time;
+}
+
+bool ElectricBillCalculation::isOver1MthFromSetupDate(time_t *today)
+{
+    struct tm *tm_setup_date;
+    struct tm *tm_today;
+    tm_setup_date = localtime(&setup_date);
+    tm_today = localtime(today);
+
+    //year
+    if(tm_today->tm_year > tm_setup_date->tm_year) return true;
+
+    //month&day
+    if(tm_today->tm_mon > tm_setup_date->tm_mon &&
+       tm_today->tm_mday > tm_setup_date->tm_mday) return true;
+
+    return false;
+}
+
 int16_t ElectricBillCalculation::getDays(int16_t y, int16_t m, int16_t d)
 {
     // 1・2月 → 前年の13・14月

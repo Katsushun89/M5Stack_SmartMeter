@@ -8,13 +8,16 @@ private:
     uint32_t power_consumption_this_month_;
     float electric_bill_;
     uint32_t min_meter_read_power_;
+    time_t setup_date;
     float calcMeterRateLightingB(void);
 
 public:
     ElectricBillCalculation();
     bool isEnableTime(time_t *today);
+    bool isOver1MthFromSetupDate(time_t *today);
     int16_t calcMeterReadingDiffDays(time_t *today);
     void setMeterReadingPowerConsumption(integral_power_record_t *last_meter_read_power);
     uint32_t calcThisMonthPowerConsumption(integral_power_consumpution_t *latest_power);
     float calcThisMonthElectricBill(void);
+    void setSetupDate(time_t *time);
 };

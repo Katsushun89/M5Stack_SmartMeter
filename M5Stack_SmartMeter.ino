@@ -113,11 +113,12 @@ void executeInitialCommBP35A1(void)
 void configureTime(void)
 {
   bool is_enable_time = false;
+  time_t t;
   for(uint8_t i = 0; i < 10; i++){
     configTime( JST, 0, "ntp.nict.jp", "ntp.jst.mfeed.ad.jp");//after setupWifi
     delay(100);
 
-    time_t t = time(NULL);
+    t = time(NULL);
     if(bill_calc.isEnableTime(&t)){
       /* check time : OK */
       is_enable_time = true;
@@ -125,6 +126,8 @@ void configureTime(void)
     }
   }
   if(!is_enable_time) ESP.restart();
+
+  bill_calc.setSetupDate(&t);
 }
 
 void setup()
@@ -156,6 +159,12 @@ void printTime(void)
   static const char *wd[7] = {"Sun","Mon","Tue","Wed","Thr","Fri","Sat"};
  
   t = time(NULL);
+  
+  if(bill_calc.isOver1MthFromSetupDate(&t)){
+    //if over 1month from call setup(), need to restart to update meter read date.
+    ESP.restart();
+  }
+
   tm = localtime(&t);
   Serial.printf(" %04d/%02d/%02d(%s) %02d:%02d:%02d\n",
         tm->tm_year+1900, tm->tm_mon+1, tm->tm_mday,
@@ -182,6 +191,7 @@ void printTime(void)
                );
  
 }
+
 void loop()
 {
   int t = millis();
