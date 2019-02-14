@@ -86,13 +86,19 @@ void setupAmbient(void)
 void executeInitialCommBP35A1(void)
 {
   time_t t = time(NULL);
+  //検針日が何日前か日数を計算してcollect_dateに代入
   uint8_t collect_date = bill_calc.calcMeterReadingDiffDays(&t);
+
+  //積算履歴収集日1:0xE5
+  //0:当日、1～99:前日の日数
+  //前回の検針日までの日数をスマートメーターに設定
   if(bp35a1->setIntegralCollectDate(collect_date)){
     Serial.println("setIntegralCollectDate success");
   }else{
     ESP.restart();
   }
    
+  //定時積算電力量計測値(正方向計測値):0xEA
   integral_power_consumpution_t integral_power = {0}; 
   if(bp35a1->getIntegralPowerConsumption(&integral_power)){
     Serial.println("getIntegralPowerConsumption success");
@@ -100,6 +106,9 @@ void executeInitialCommBP35A1(void)
     ESP.restart(); 
   }
 
+  //積算電力量計測値履歴１(正方向計測値):0xE2
+  //積算履歴収集日1で設定した日付の積算電力量の30分ごとのリストを24時間48コマ分取得
+  //ここで検針日の電力量のリストが取得出来る
   integral_power_record_t integral_power_record = {0};
   if(bp35a1->getIntegralPowerRecord(&integral_power_record)){
     Serial.println("getIntegralPowerRecord success");
@@ -107,6 +116,7 @@ void executeInitialCommBP35A1(void)
     ESP.restart();
   }
 
+  //検針日の積算電力量を保存
   bill_calc.setMeterReadingPowerConsumption(&integral_power_record);
 }
 
